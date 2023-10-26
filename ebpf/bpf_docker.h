@@ -7,11 +7,13 @@
 #ifndef BPF_DOCKER__H
 #define BPF_DOCKER__H
 
+#include "process/process.h"
+
 /**
  * @description: 获取当前任务的 mount ns id
  * @return {u32} 成功时返回 ns id， 失败时返回 0
  */
-static __always_inline u32 get_current_mnt_ns_id()
+static __always_inline u64 get_current_mnt_ns_id()
 {
 	struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
 	return task->nsproxy->mnt_ns->ns.inum;

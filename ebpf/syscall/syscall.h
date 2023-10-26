@@ -14,31 +14,21 @@
  limitations under the License.
  */
 
-#ifndef PROCESS__H
-#define PROCESS__H
+#ifndef SYSCALL__H
+#define SYSCALL__H
 
-#define TASK_COMM_LEN	 16
-#define MAX_FILENAME_LEN 127
-#define CONTAINER_ID_LEN 127
+// #include <linux/bpf.h>
+#define SYSCALL_TASK_COMM_LEN 64
 
-struct common_event {
-	int pid;
-	int ppid;
-	uint64_t cgroup_id;
-	uint32_t user_namespace_id;
-	uint32_t pid_namespace_id;
-	uint64_t mount_namespace_id;
+struct syscall_event
+{
+        int pid;
+        int ppid;
+        uint32_t syscall_id;
+        uint64_t mntns;
+        char comm[SYSCALL_TASK_COMM_LEN];
+        unsigned char occur_times;
 };
 
-struct process_event {
-	struct common_event common;
 
-	unsigned exit_code;
-	int pid;
-	unsigned long long duration_ns;
-	char comm[TASK_COMM_LEN];
-	char filename[MAX_FILENAME_LEN];
-	int exit_event;
-};
-
-#endif // !PROCESS__H
+#endif // !SYSCALL__H
