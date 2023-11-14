@@ -21,14 +21,7 @@
 #define MAX_FILENAME_LEN 127
 #define CONTAINER_ID_LEN 127
 
-struct common_event {
-	int pid;
-	int ppid;
-	uint64_t cgroup_id;
-	uint32_t user_namespace_id;
-	uint32_t pid_namespace_id;
-	uint64_t mount_namespace_id;
-};
+#include "../common_event.h"
 
 struct process_event {
 	struct common_event common;

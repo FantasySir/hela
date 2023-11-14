@@ -57,10 +57,10 @@ static void print_basic_info(const struct common_event *e, int is_csv)
 	tm = localtime(&t);
 	strftime(ts, sizeof(ts), "%H:%M:%S", tm);
 	if (is_csv) {
-		printf("%s,%d,%d,%lu,%u,%u,%u", ts, e->pid, e->ppid, e->cgroup_id,
+		printf("%s,%d,%d,%lu,%u,%u,%lu", ts, e->pid, e->ppid, e->cgroup_id,
 		       e->user_namespace_id, e->pid_namespace_id, e->mount_namespace_id);
 	} else {
-		printf("%-8s\t%-7d\t%-7d\t%lu\t\t%u\t\t%u\t\t%u\t\t", ts, e->pid, e->ppid,
+		printf("%-8s\t%-7d\t%-7d\t%lu\t\t%u\t\t%u\t\t%lu\t\t", ts, e->pid, e->ppid,
 		       e->cgroup_id, e->user_namespace_id, e->pid_namespace_id,
 		       e->mount_namespace_id);
 	}
