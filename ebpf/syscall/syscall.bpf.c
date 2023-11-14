@@ -45,6 +45,14 @@ struct {
         __uint(max_entries, 1);
 } cgroup_map SEC(".maps");
 
+struct {
+    __uint(type,BPF_MAP_TYPE_HASH);
+    __uint(max_entries,1000);
+    __type(key,pid_t);
+    __type(value,struct container_process);
+} Docker_ID SEC(".maps");
+
+
 const volatile int filter_cg = 0;
 const volatile unsigned char filter_report_times = 0;
 const volatile pid_t filter_pid = 0;
@@ -78,6 +86,8 @@ int sys_enter(struct trace_event_raw_sys_enter *args)
                 return 0;
 
         u32 pid = bpf_get_current_pid_tgid() >> 32;
+        if (!bpf_map_lookup_elem(&Docker_ID, &pid))
+                return 0;
         if (filter_pid && pid != filter_pid)
                 return 0;
         if (filter_cg && !bpf_current_task_under_cgroup(&cgroup_map, 0))

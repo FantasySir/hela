@@ -148,11 +148,12 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 {
 	printf("Into event handle!\n");
 	const struct process_event *e = data;
-	if (process_env.is_csv) {
 		print_csv_data(e);
+	if (process_env.is_csv) {
 	} else {
 		print_table_data(e);
 	}
+	return 0;
 }
 
 int main(int argc, char **argv)

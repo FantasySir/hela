@@ -78,7 +78,9 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 	e->exit_event = 0;
 	e->pid = pid;
 	fname_off = ctx->__data_loc_filename & 0xFFFF;
-	bpf_probe_read_str(e->filename, sizeof(e->filename), (void *)ctx + fname_off);
+        bpf_probe_read_str(e->filename, sizeof(e->filename),
+                           (void *)ctx + fname_off);
+        bpf_map_update_elem(&process, &pid, e, BPF_ANY);
 
 	bpf_ringbuf_submit(e, 0);
 	return 0;
@@ -133,8 +135,11 @@ int handle_exit(struct trace_event_raw_sched_process_template *ctx)
 	e->pid = pid;
 	e->exit_code = (BPF_CORE_READ(task, exit_code) >> 8) & 0xFF;
 	bpf_get_current_comm(&e->comm, sizeof(e->comm));
+	bpf_map_delete_elem(&process, &pid);
 
 	// 发送进程数据数据去用户空间
 	bpf_ringbuf_submit(e, 0);
+	bpf_map_delete_elem(&process, &pid);
+
 	return 0;
 }
