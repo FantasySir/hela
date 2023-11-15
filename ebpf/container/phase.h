@@ -15,9 +15,17 @@
 #define READ_FIFOFD 0x20
 #endif // !CONTAINER_STAGE
 
-typedef int pid_t;
+
+
+#define TASK_COMM_LEN	 16
+#define MAX_FILENAME_LEN 127
+#define CONTAINER_ID_LEN 127
 
 #include "../process/process.h"
+
+
+typedef int pid_t;
+
 
 struct container_process {
 	int pid;

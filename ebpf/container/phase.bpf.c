@@ -10,12 +10,11 @@
 #define GO_PARAM9(x) BPF_CORE_READ((x), r11)
 #define GOROUTINE(x) BPF_CORE_READ((x), r14)
 #define GO_SP(x) BPF_CORE_READ((x), sp)
-#include <vmlinux.h>
+#include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 #include "phase.h"
-
 
 void* go_get_argument_by_reg(struct pt_regs *ctx, int index) {
     switch (index) {
@@ -54,6 +53,12 @@ void* go_get_argument(struct pt_regs *ctx,bool is_register_abi, int index) {
     return go_get_argument_by_stack(ctx, index);
 }
 
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 8192);
+	__type(key, pid_t);
+	__type(value, struct process_event);
+} process SEC(".maps");
 
 struct {
     __uint(type,BPF_MAP_TYPE_HASH);
@@ -62,12 +67,7 @@ struct {
     __type(value,struct container_process);
 } Docker_ID SEC(".maps");
 
-struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__uint(max_entries, 8192);
-	__type(key, pid_t);
-	__type(value, struct process_event);
-} process SEC(".maps");
+
 
 
 //gRPC从daemon到containerd
@@ -227,38 +227,38 @@ int BPF_UPROBE(read_fifofd)
     return 0;
 }
 
-//tracepoint跟踪exec进入容器进程
-SEC("tp/sched/sched_process_exec")
-int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
-{
-    pid_t pid,ppid;
-    char comm[TASK_COMM_LEN];
-    bpf_get_current_comm(&comm, sizeof(comm));
-    //bpf_printk("cmd is %s",comm);
-    if(bpf_strncmp(comm,2,"sh")==0){
-        struct task_struct *task;
-        task = (struct task_struct *)bpf_get_current_task();
-        ppid = BPF_CORE_READ(task, real_parent, tgid);
-        struct container_process *cp1;
-        cp1 = bpf_map_lookup_elem(&Docker_ID,&ppid);
-        if(cp1!=NULL){
-            unsigned fname_off;
-            char filename[MAX_FILENAME_LEN];
-            pid = bpf_get_current_pid_tgid() >> 32;
-            bpf_printk("runc's Exec start! Pid is %d",pid);
-            bpf_get_current_comm(comm, sizeof(comm));
-            cp1->pid = pid;
-            cp1->ppid = ppid;
-            bpf_map_update_elem(&Docker_ID,&ppid,cp1,BPF_ANY);
-            fname_off = ctx->__data_loc_filename & 0xFFFF;
-            bpf_probe_read_str(&filename, sizeof(filename), (void *)ctx + fname_off);
-            bpf_printk("pid is %d,parent is %d,filename is %s.",pid,ppid,filename);
-            bpf_printk("containerID is %s.",cp1->cid);
+// //tracepoint跟踪exec进入容器进程
+// SEC("tp/sched/sched_process_exec")
+// int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
+// {
+//     pid_t pid,ppid;
+//     char comm[TASK_COMM_LEN];
+//     bpf_get_current_comm(&comm, sizeof(comm));
+//     //bpf_printk("cmd is %s",comm);
+//     if(bpf_strncmp(comm,2,"sh")==0){
+//         struct task_struct *task;
+//         task = (struct task_struct *)bpf_get_current_task();
+//         ppid = BPF_CORE_READ(task, real_parent, tgid);
+//         struct container_process *cp1;
+//         cp1 = bpf_map_lookup_elem(&Docker_ID,&ppid);
+//         if(cp1!=NULL){
+//             unsigned fname_off;
+//             char filename[MAX_FILENAME_LEN];
+//             pid = bpf_get_current_pid_tgid() >> 32;
+//             bpf_printk("runc's Exec start! Pid is %d",pid);
+//             bpf_get_current_comm(comm, sizeof(comm));
+//             cp1->pid = pid;
+//             cp1->ppid = ppid;
+//             bpf_map_update_elem(&Docker_ID,&ppid,cp1,BPF_ANY);
+//             fname_off = ctx->__data_loc_filename & 0xFFFF;
+//             bpf_probe_read_str(&filename, sizeof(filename), (void *)ctx + fname_off);
+//             bpf_printk("pid is %d,parent is %d,filename is %s.",pid,ppid,filename);
+//             bpf_printk("containerID is %s.",cp1->cid);
             
-        }
-    }
-	return 0;
-}
+//         }
+//     }
+// 	return 0;
+// }
 
 
 char LICENSE[] SEC("license") = "GPL";
