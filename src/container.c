@@ -14,19 +14,21 @@
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 
-#include "../ebpf/common.h"
+// #include "../ebpf/common.h"
 #include "../ebpf/process/process.h"
-#include "../ebpf/process/.output/process.skel.h"
+// #include "../ebpf/process/.output/process.skel.h"
+#include "./.output/process.skel.h"
 #include "../ebpf/syscall/syscall.h"
-#include "../ebpf/syscall/.output/syscall.skel.h"
+// #include "../ebpf/syscall/.output/syscall.skel.h"
+#include "./.output/syscall.skel.h"
 #include "../ebpf/container/phase.h"
-#include "../ebpf/container/.output/phase.skel.h"
+// #include "../ebpf/container/.output/phase.skel.h"
+#include "./.output/phase.skel.h"
 
 
 static struct phase_bpf *start_container_tracker()
 {
 	struct phase_bpf *skel;
-        struct container_process *cp;
         int err;
 
         /* load & verify ebpf applications */
@@ -59,7 +61,6 @@ cleanup:
 static struct process_bpf *start_process_tracker()
 {
 	struct process_bpf *skel;
-        struct container_process *cp;
         int err;
 
         /* load & verify ebpf applications */
@@ -131,6 +132,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
         char ts[32];
         time_t t;
         int pid = e->pid;
+        struct phase_bpf *phase_skel = (struct phase_bpf *)ctx;
 
         /* Time stamp collect */
         time(&t);
@@ -162,6 +164,8 @@ int start_trackers(char *output_path, int exiting)
         phase_skel = start_container_tracker();
         process_skel = start_process_tracker();
         syscall_skel = start_syscall_tracker();
+
+        ctx = (void *)phase_skel;
 
         syscall_rb = ring_buffer__new(bpf_map__fd(syscall_skel->maps.events), handle_event, ctx, NULL);
         if (!syscall_rb) {

@@ -3,33 +3,25 @@
 # license that can be found in the LICENSE file.
 
 OUTPUT := .output
+
 CLANG ?= clang
 LLVM_STRIP ?= llvm-strip
-BPFTOOL ?= $(abspath ../../tools/bpftool)
-LIBBPF_SRC := $(abspath ../../libbpf/src)
+BPFTOOL ?= $(abspath ../tools/bpftool)
+LIBBPF_SRC := $(abspath ../libbpf/src)
 LIBBPF_OBJ := $(abspath $(OUTPUT)/libbpf.a)
-ARCH ?= $(shell uname -m | sed 's/x86_64/x86/' 		\
-			 | sed 's/aarch64/arm64/' 	\
-			 | sed 's/ppc64le/powerpc')
 
-VMLINUX := ../../vmlinux/$(ARCH)/vmlinux.h
+VMLINUX := ../../vmlinux/x86/vmlinux.h
+INCLUDES := -I$(OUTPUT) -I../libbpf/include/uapi -I$(dir $(VMLINUX))
+
+# Sub directions
+EBPF_DIRS := $(shell find $(abspath ../ebpf/) -mindepth 1 -maxdepth 1 -type d)
 
 # Use customed libbpf api & uapi
-INCLUDES := -I./ -I$(OUTPUT) -I../../libbpf/include/uapi -I../include -I$(dir $(VMLINUX)) 
 CFLAGS := -g -Wall -Wno-unused-function -fsanitize=address
 
-APPS = syscall
-
-# Get Clang's default includes on this system. We'll explicitly add these dirs
-# to the includes list when compiling with `-target bpf` because otherwise some
-# architecture-specific dirs will be "missing" on some architectures/distros -
-# headers such as asm/types.h, asm/byteorder.h, asm/socket.h, asm/sockios.h,
-# sys/cdefs.h etc. might be missing.
-#
-# Use '-idirafter': Don't interfere with include mechanics except where the
-# build would have failed anyways.
-CLANG_BPF_SYS_INCLUDES ?= $(shell $(CLANG) -v -E - </dev/null 2>&1 \
-	| sed -n '/<...> search starts here:/,/End of search list./{ s| \(/.*\)|-idirafter \1|p }')
+# List of .c files that should be compiled for the hela binary
+HELA_SRCS := $(wildcard *.c)
+HELA_OBJS := $(patsubst %.c, $(OUTPUT)/%.o, $(HELA_SRCS))
 
 ifeq ($(V), 1)
 	Q = 
@@ -43,13 +35,29 @@ else
 	MAKEFLAGS += --no-print-directory
 endif
 
-.PHONY:all
-all: $(APPS)
+
+
+.PHONY:all 
+all: $(LIBBPF_OBJ) $(EBPF_DIRS) copy hela
 
 .PHONY:clean
 clean:
-	$(call msg,CLEAN)
-	$(Q)rm -rf $(OUTPUT) $(APPS)
+	$(foreach N, $(EBPF_DIRS), make clean -C $(N);)
+	$(Q)rm -rf $(OUTPUT) hela 
+
+.PHONY: copy
+copy:
+	@find ../ebpf -path '*/.output/*.bpf.o' -exec cp {} $(OUTPUT) \;
+	@find ../ebpf -path '*/.output/*.h' -exec cp {} $(OUTPUT) \;
+
+# Make ebpf/* prog
+.PHONY: subdirs $(EBPF_DIRS)
+subdirs: $(EBPF_DIRS)
+$(EBPF_DIRS):
+	@+make -C $@
+
+
+
 
 $(OUTPUT) $(OUTPUT)/libbpf:
 	$(call msg,MKDIR,$@)
@@ -63,26 +71,20 @@ $(LIBBPF_OBJ): $(wildcard $(LIBBPF_SRC)/*.[ch] $(LIBBPF_SRC)/Makefile) | $(OUTPU
 		    INCLUDEDIR= LIBDIR= UAPIDIR=		\
 		    install
 
-# Compile bpf code
-$(OUTPUT)/%.bpf.o: %.bpf.c $(LIBBPF_OBJ) $(wildcard %.h) $(VMLINUX) | $(OUTPUT)
-	$(call msg,BPF,$@)
-	$(Q)$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) $(INCLUDES) $(CLANG_BPF_SYS_INCLUDES) -c $(filter %.c,$^) -o $@
-	$(Q)$(LLVM_STRIP) -g $@ # strip useless DWARF info
+# # Generate bpf skeletons
+# $(OUTPUT)/%.skel.h: $(OUTPUT)/%.bpf.o | $(OUTPUT)
+# 	$(call msg,GEN-SKEL,$@)
+# 	$(Q)$(BPFTOOL) gen skeleton $< > $@
 
-# Generate bpf skeletons
-$(OUTPUT)/%.skel.h: $(OUTPUT)/%.bpf.o | $(OUTPUT)
-	$(call msg,GEN-SKEL,$@)
-	$(Q)$(BPFTOOL) gen skeleton $< > $@
-
-# Compile user-space code
-$(patsubst %, $(OUTPUT)/%.o, $(APPS)): %.o: %.skel.h
+# # Compile user-space code
+# $(patsubst %, $(OUTPUT)/%.o, $(APPS)): %.o: %.skel.h
 
 $(OUTPUT)/%.o: %.c $(wildcard %.h) | $(OUTPUT)
 	$(call msg,CC,$@)
 	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $(filter %.c, $^) -o $@
 
 # Build binary
-hela: %: $(OUTPUT)/%.o $(LIBBPF_OBJ) | $(OUTPUT)
+hela: $(HELA_OBJS) $(LIBBPF_OBJ)
 	$(call msg,BINARY,$@)
 	$(Q)$(CC) $(CFLAGS) $^ -lelf -lz -o $@
 
