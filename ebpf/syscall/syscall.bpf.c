@@ -46,11 +46,11 @@ struct {
 } cgroup_map SEC(".maps");
 
 struct {
-    __uint(type,BPF_MAP_TYPE_HASH);
-    __uint(max_entries,1000);
-    __type(key,pid_t);
-    __type(value,struct container_process);
-} Docker_ID SEC(".maps");
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 1 << 24);
+	__type(key, u64);
+	__type(value, u64);
+} container_mntns SEC(".maps");
 
 
 const volatile int filter_cg = 0;
@@ -85,19 +85,30 @@ int sys_enter(struct trace_event_raw_sys_enter *args)
         if (syscall_id < 0 || syscall_id >= MAX_SYSCALLS)
                 return 0;
 
-        u32 pid = bpf_get_current_pid_tgid() >> 32;
-        if (!bpf_map_lookup_elem(&Docker_ID, &pid))
+        struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+        u64 mntns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
+        
+        /* mntns Filter */
+        if (!bpf_map_lookup_elem(&container_mntns, &mntns)) {
+                // bpf_printk("syscall not in container...");
                 return 0;
+        }
+
+        if (bpf_map_lookup_elem(&container_mntns, &mntns)) {
+                bpf_printk("Get host mount namespace from process tracker... mount namespace id is : %lu", mntns);
+        }
+        /* mntns filter finished */
+
+        u32 pid = bpf_get_current_pid_tgid() >> 32;
         if (filter_pid && pid != filter_pid)
                 return 0;
         if (filter_cg && !bpf_current_task_under_cgroup(&cgroup_map, 0))
                 return 0;
 
-        struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-        u64 mntns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
         if (0 == mntns) {
                 return 0;
         }
+
 
         /* 检查进程命令 */
         char comm[MAX_COMM_LEN];
