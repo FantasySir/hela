@@ -32,9 +32,18 @@ struct {
 	__uint(max_entries, 256 * 1024);
 } rb SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 1 << 24);
+	__type(key, u64);
+	__type(value, u64);
+} container_mntns SEC(".maps");
+
 const volatile unsigned long long min_duration_ns = 0;
 const volatile unsigned long long target_pid = 0;
 const volatile unsigned long long exclude_current_ppid = 0;
+unsigned long host_mntns = 0;
+unsigned long container_num = 0;
 
 /**
  * @description: 捕获exec 的 task 并存入 rb
@@ -49,6 +58,35 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 	struct process_event *e;
 	pid_t pid;
 	u64 ts;
+	u64 mntns;
+
+	task = (struct task_struct *)bpf_get_current_task();
+
+	/* filter */
+
+	mntns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
+	// Host mntns
+	if (!host_mntns) {
+		host_mntns = mntns;
+	}
+	// bpf_printk("host mntns already saved!");
+	if (mntns == host_mntns) {
+		// bpf_printk("process not in container!");
+		return 0;
+	}
+
+	// container mntns
+	u64 con_num = bpf_map_lookup_elem(&container_mntns, &mntns);
+	if (!con_num) {
+		bpf_printk("Yeah! Adding new mntns! mntns is : %lu", mntns);
+		con_num = container_num;
+		bpf_map_update_elem(&container_mntns, &mntns, &con_num, BPF_ANY);
+		container_num += 1;
+	}
+
+	if (bpf_map_lookup_elem(&container_mntns, &mntns)) {
+		bpf_printk("Find mntns from container, %lu", mntns);
+	}
 
 	pid = bpf_get_current_pid_tgid() >> 32;
 	if (target_pid && pid != target_pid) {
@@ -66,12 +104,13 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 		return 0;
 	}
 
-	task = (struct task_struct *)bpf_get_current_task();
 	if (exclude_current_ppid) {
 		if (exclude_current_ppid == BPF_CORE_READ(task, real_parent, tgid)) {
 			return 0;
 		}
 	}
+	/* end filter */
+
 	fill_event_basic(pid, task, e);
 
 	bpf_get_current_comm(&e->comm, sizeof(e->comm));
@@ -93,6 +132,7 @@ int handle_exit(struct trace_event_raw_sched_process_template *ctx)
 	struct process_event *e;
 	pid_t pid, tid;
 	unsigned int id, ts, *start_ts, duration_ns = 0;
+	// u64 mntns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
 
 	id = bpf_get_current_pid_tgid();
 	pid = id >> 32;
@@ -135,7 +175,10 @@ int handle_exit(struct trace_event_raw_sched_process_template *ctx)
 	e->pid = pid;
 	e->exit_code = (BPF_CORE_READ(task, exit_code) >> 8) & 0xFF;
 	bpf_get_current_comm(&e->comm, sizeof(e->comm));
+
+	/* Delete mntns from map */
 	bpf_map_delete_elem(&process, &pid);
+	// bpf_map_delete_elem(&container_mntns, &mntns);
 
 	// 发送进程数据数据去用户空间
 	bpf_ringbuf_submit(e, 0);

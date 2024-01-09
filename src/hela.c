@@ -13,7 +13,7 @@ int container_syscall_tracing(char *output_path)
 	signal(SIGTERM, sig_handler);
 
 	/* Print table title */
-        printf("%s, %-8s %-16s", "CONTAINER", "PID", "SYSCALL_ID");
+        printf("%s      %-8s      %-16s\n", "CONTAINER", "PID", "SYSCALL_ID");
         return start_trackers(output_path, exiting);
 }
 
@@ -26,5 +26,6 @@ int main(int argc, char **argv)
 
         /* Tracing */
         container_syscall_tracing(NULL);
-	return 0;
+	ret = 0;
+	return ret;
 }
