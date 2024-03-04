@@ -90,13 +90,13 @@ int sys_enter(struct trace_event_raw_sys_enter *args)
         
         /* mntns Filter */
         if (!bpf_map_lookup_elem(&container_mntns, &mntns)) {
-                // bpf_printk("syscall not in container...");
+                // bpf_printk("syscall not in container...mntns is : %lu", mntns);
                 return 0;
         }
 
-        if (bpf_map_lookup_elem(&container_mntns, &mntns)) {
-                bpf_printk("Get host mount namespace from process tracker... mount namespace id is : %lu", mntns);
-        }
+        // if (bpf_map_lookup_elem(&container_mntns, &mntns)) {
+        //         // bpf_printk("Get container mount namespace from process tracker... mount namespace id is : %lu", mntns);
+        // }
         /* mntns filter finished */
 
         u32 pid = bpf_get_current_pid_tgid() >> 32;
