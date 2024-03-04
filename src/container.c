@@ -14,20 +14,25 @@
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 
-// #include "../ebpf/common.h"
 #include "../ebpf/process/process.h"
-// #include "../ebpf/process/.output/process.skel.h"
 #include "./.output/process.skel.h"
 #include "../ebpf/syscall/syscall.h"
-// #include "../ebpf/syscall/.output/syscall.skel.h"
 #include "./.output/syscall.skel.h"
 #include "../ebpf/container/phase.h"
-// #include "../ebpf/container/.output/phase.skel.h"
 #include "./.output/phase.skel.h"
+#include "../ebpf/syscall/syscall_helper.h"
 
-#define CON_MNTNS_PIN_PATH "/sys/fs/bpf/con_mntns"
+#include "data_dealer.h"
 
+#define CON_MNTNS_PIN_PATH              "/sys/fs/bpf/con_mntns"
+#define MAX_CON                         500
+#define BATCH                           8
 
+// TODO: 完善下面的结构体，把skel和seq都传进去
+struct event_ctx {
+        struct syscall_bpf *ctx;
+        SEQ *seq;
+};
 
 // static struct phase_bpf *start_container_tracker()
 // {
@@ -139,8 +144,19 @@ cleanup:
         return skel;
 }
 
-static int handle_event(void *ctx, void *data, size_t data_sz)
+static clear_pin_file()
 {
+        char pin_file_path = CON_MNTNS_PIN_PATH;
+        if (remove(pin_file_path) == 0) {
+                hela_info("Pin path init finished!\n");
+        } else {
+                hela_info("Pin path remove failed!\n");
+        }
+}
+
+static int handle_event(void *v_ctx, void *data, size_t data_sz)
+{
+        struct event_ctx *ctx = (struct event_ctx *)v_ctx;
         int syscall_fd;
         const struct syscall_event *e = data;
         // struct container_process cp;
@@ -149,7 +165,11 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
         char ts[32];
         time_t t;
         int pid = e->pid;
-        struct syscall_bpf *syscall_skel = (struct syscall_bpf *)ctx;
+        struct syscall_bpf *syscall_skel = (struct syscall_bpf *)ctx->ctx;
+        // SEQ *seq = (SEQ *)ctx->seq;
+        // char *combine_seq[25] = { 0 };
+        // int combine_seq_len = -1;
+        // char seq_dig[32] = { 0 };
         unsigned long mntns = e->mntns;
         unsigned long count;
         // struct phase_bpf *phase_skel = (struct phase_bpf *)ctx;
@@ -167,7 +187,19 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
                 hela_error("Cannot get mount namespace from syscall hook");
         }
 
-        printf("%s        %u        %u\n", ts, pid, e->syscall_id);
+        /* Sequence dealer */
+
+        // update_syscall_seq(seq, e->syscall_id);
+        // if (queueIsFull(seq)) {
+        //         combine_seq_len = combine_sequence(seq, &combine_seq);
+        //         digest_gen(combine_seq, combine_seq_len, seq_dig);
+        // }
+        
+
+        /* Sequence dealer end*/
+
+        printf("%s          %s        %u        %s\n", ts, e->comm, pid, syscall_names_x86_64[e->syscall_id]);
+        // printf("seq is : %d", seq->data[seq->rear]);
         return 0;
 }
 
@@ -182,13 +214,29 @@ int start_trackers(char *output_path, int exiting)
         void *ctx = NULL;
         int shared_fd = 0;
         int err;
-        const char *pin_path = "/sys/fs/bpf/container_mntns";
+        int i;
+        const char *pin_path = CON_MNTNS_PIN_PATH;
+
+        SEQ **syscall_seq;
+
+        /* Init */
+        clear_pin_file();
+        syscall_seq = (SEQ **)malloc(sizeof(SEQ *) * MAX_CON);
+        con_syscall_init(syscall_seq, BATCH, MAX_CON);
+
+
+        /* Init finished */
 
         // phase_skel = start_container_tracker();
         process_skel = start_process_tracker();
         syscall_skel = start_syscall_tracker();
 
-        ctx = (void *)syscall_skel;
+        // TODO:就在这加ctx的结构体，先睡了，八八
+        struct event_ctx ec = {
+                .ctx = syscall_skel,
+                .seq = syscall_seq
+        };
+        ctx = (void *)&ec;
 
         shared_fd = bpf_obj_get(pin_path);
         unsigned long key;
@@ -213,7 +261,7 @@ int start_trackers(char *output_path, int exiting)
                         break;
                 }
                 if (err < 0) {
-                        printf("[Error] polling perf buffer: %d\n", err);
+                        hela_error("polling perf buffer: %d\n", err);
                         break;
                 }
         }

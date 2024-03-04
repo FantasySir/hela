@@ -39,6 +39,13 @@ struct {
 	__type(value, u64);
 } container_mntns SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 1 << 24);
+	__type(key, u64);
+	__type(value, u64);
+} host_con_base_mntns SEC(".maps");
+
 const volatile unsigned long long min_duration_ns = 0;
 const volatile unsigned long long target_pid = 0;
 const volatile unsigned long long exclude_current_ppid = 0;
@@ -59,33 +66,64 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 	pid_t pid;
 	u64 ts;
 	u64 mntns;
+	char comm[70];
 
 	task = (struct task_struct *)bpf_get_current_task();
+	mntns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
+	bpf_get_current_comm(&comm, 69);
 
 	/* filter */
 
-	mntns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
-	// Host mntns
+	// host_con_base_mntns filter
+	// dockerd mntns
 	if (!host_mntns) {
 		host_mntns = mntns;
 	}
-	// bpf_printk("host mntns already saved!");
+
+	
+
+	// udevd mntns
+	if ( bpf_strncmp(comm, 15, "bridge-network-") == 0 ) {
+		bpf_printk("Detected bridge-network!! mntns is : %lu", mntns);
+		if (!bpf_map_lookup_elem(&host_con_base_mntns, &mntns)) {
+			bpf_map_update_elem(&host_con_base_mntns, &mntns, &pid, BPF_ANY);
+		}
+		return 0;
+	}
+
+	// dockerd
+	if (bpf_strncmp(comm, 15, "containerd-shim") == 0) {
+		bpf_printk("Detected shim ! mntns is : %lu", mntns);
+		if (!bpf_map_lookup_elem(&host_con_base_mntns, &mntns)) {
+			bpf_map_update_elem(&host_con_base_mntns, &mntns, &pid, BPF_ANY);
+		}
+		return 0;
+	}
+
 	if (mntns == host_mntns) {
 		// bpf_printk("process not in container!");
 		return 0;
 	}
+	if (bpf_map_lookup_elem(&host_con_base_mntns, &mntns)) {
+		return 0;
+	}
+
 
 	// container mntns
 	u64 con_num = bpf_map_lookup_elem(&container_mntns, &mntns);
+	
 	if (!con_num) {
-		bpf_printk("Yeah! Adding new mntns! mntns is : %lu", mntns);
+		bpf_printk("Yeah! Adding new mntns! mntns is : %lu, proc_comm is : %s", mntns, comm);
+		container_num += 1;
+		bpf_printk("container_num is : %lu", container_num);
 		con_num = container_num;
 		bpf_map_update_elem(&container_mntns, &mntns, &con_num, BPF_ANY);
-		container_num += 1;
+	} else {
+		bpf_printk("Sure! There has exist mnts is : %lu, proc_comm is : %s", mntns, comm);
 	}
 
 	if (bpf_map_lookup_elem(&container_mntns, &mntns)) {
-		bpf_printk("Find mntns from container, %lu", mntns);
+		bpf_printk("Find mntns from container, %lu, proc_comm is : %s", mntns, comm);
 	}
 
 	pid = bpf_get_current_pid_tgid() >> 32;
