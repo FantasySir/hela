@@ -29,6 +29,7 @@ struct syscall_event
         uint64_t mntns;
         char comm[SYSCALL_TASK_COMM_LEN];
         unsigned char occur_times;
+        int con_id;
 };
 
 

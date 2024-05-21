@@ -3,6 +3,12 @@
 
 #include <curl/curl.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+// #include "sm3.h"
+
+
+#define CHECKBATCH 24
 
 /* Queue */
 
@@ -11,13 +17,15 @@ struct queue {
 	int size;	// 队列容量
 	int front;
 	int rear;
+	int checkCount;
+	int deviation;
 };
 
 typedef struct queue SEQ;
 
 static int queueNext(struct queue *q, int idx)
 {
-	return (idx + 1) % q->size;
+	return (idx + 1) % (q->size + 1);
 }
 
 int queueIsFull(struct queue *q) {
@@ -28,15 +36,15 @@ int queueIsFull(struct queue *q) {
 
 int queueAppend(struct queue *q, int data)
 {
+	if (queueIsFull(q)) {
+		q->front = queueNext(q, q->front);
+	}
 	if (q->size < 1) {
 		return 0;
 	}
-	int next_idx = queueNext(q, q->rear);
-	q->data[next_idx] = data;
-	q->rear = next_idx;
-	if (q->rear == q->front) {
-		q->front++;
-	}
+	q->data[q->rear] = data;
+	q->rear = queueNext(q, q->rear);
+
 	return 1;
 }
 
@@ -70,15 +78,29 @@ void con_syscall_init(SEQ **syscall_seq, int syscall_seq_cap, int syscall_seq_si
 	for (i = 0; i < syscall_seq_size; ++i) {
 		syscall_seq[i] = (SEQ *)malloc(sizeof(SEQ));
 		syscall_seq[i]->front = syscall_seq[i]->rear = 0;
-		syscall_seq[i]->data = (int *)malloc(sizeof(int) * syscall_seq_cap);
+		syscall_seq[i]->data = (int *)malloc(sizeof(int) * (syscall_seq_cap + 1));
 		syscall_seq[i]->size = syscall_seq_cap;
+		syscall_seq[i]->checkCount = 0;
+		syscall_seq[i]->deviation = 0;
 	}
 }
 
 int update_syscall_seq(SEQ *syscall_seq, int new_syscall)
 {
 	int ret = queueAppend(syscall_seq, new_syscall);
+	syscall_seq->checkCount++;
 	return ret;
+}
+
+int sequence_batch_check(SEQ *syscall_seq)
+{
+	return syscall_seq->checkCount >= CHECKBATCH;
+}
+
+int add_deviation(SEQ *syscall_seq)
+{
+	syscall_seq->deviation++;
+	return syscall_seq->deviation;
 }
 
 /**
@@ -92,6 +114,7 @@ int combine_sequence(SEQ *syscall_seq, char **out_seq)
 	int c_p = syscall_seq->front;
 	int s_p = 0;
 	char *seq_combine = *out_seq;
+	// printf("q front is : %d\n", syscall_seq->data[syscall_seq->front]);
 	if (queueIsFull(syscall_seq)) {
 		// 融合序列为string
 		while (c_p != syscall_seq->rear) {
@@ -128,16 +151,24 @@ int combine_sequence(SEQ *syscall_seq, char **out_seq)
 	return s_p;		
 }
 
-void digest_gen(char *in, int len, unsigned char *out) 
+void digest_gen(char *in, int len, unsigned char out[64]) 
 {
-	char res[32];
+	unsigned char digest[32];
 	unsigned char *ori_msg = (unsigned char *)in;
-	sm3(ori_msg, len, res);
+	sm3_once_calcu(ori_msg, len, digest);
+	sm3_hexdigest(digest, out);
 }
 
-int out2File(unsigned char *in, int len, char *file_path) 
-{
 
+
+void freeSeq(SEQ **syscall_seq, int syscall_seq_cap, int syscall_seq_size)
+{
+        int i;
+
+	for (i = 0; i < syscall_seq_size; ++i) {
+		free(syscall_seq[i]->data);
+		free(syscall_seq[i]);
+	}
 }
 
 /* syscall data dealer end*/

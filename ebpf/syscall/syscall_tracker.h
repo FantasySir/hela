@@ -21,6 +21,7 @@
 #include "syscall.h"
 #include "syscall.skel.h"
 
+
 struct syscall_env
 {
   bool verbose;
@@ -102,6 +103,11 @@ static int start_syscall_tracker(
     fprintf(stderr, "Failed to load and verify BPF skeleton\n");
     goto cleanup;
   }
+
+  // err = bpf_map__pin(skel->maps.container_mntns, CON_MNTNS_PIN_PATH);
+  //       if (err) {
+  //               fprintf(stderr,"Failed to pin shared map of : container_mntns\n");
+  //       }
 
   /* Attach tracepoints */
   err = syscall_bpf__attach(skel);

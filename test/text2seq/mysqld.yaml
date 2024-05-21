@@ -1,0 +1,12 @@
+# mysqld.yaml
+
+# 策略描述
+description: "mysqld"
+
+# 访问控制规则
+access_control:
+  - path: "/admin"
+    role: "admin"
+    procname: "mysqld"
+    src: "4"
+    methods: ["read", "write"]
