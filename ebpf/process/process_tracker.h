@@ -24,7 +24,55 @@ struct process_env {
 	volatile int *exiting;
 };
 
+<<<<<<< HEAD
 static int start_process_tracker( struct process_env env,
+=======
+static void print_table_header(const char *custom_headers[], int is_csv)
+{
+	if (is_csv) {
+		printf("time, pid, ppi, cgroup_id, user_namespace_id, pid_namespace_id, mount_namespace_id");
+	} else {
+		printf("%s\t\t%s\t%s\t%s\t%s\t%s\t%s", "time", "pid", "ppid", "cgroup_id",
+		       "user_namespace_id", "pid_namespace_id", "mount_namespace_id");
+	}
+	while (*custom_headers) {
+		if (is_csv) {
+			printf(",%s", *custom_headers);
+		} else {
+			printf("\t%s", *custom_headers);
+		}
+		custom_headers++;
+	}
+	printf("\n");
+	return;
+}
+
+static void print_basic_info(const struct common_event *e, int is_csv)
+{
+	struct tm *tm;
+	char ts[32];
+	time_t t;
+
+	if (!e) {
+		return;
+	}
+
+	time(&t);
+	tm = localtime(&t);
+	strftime(ts, sizeof(ts), "%H:%M:%S", tm);
+	if (is_csv) {
+		printf("%s,%d,%d,%lu,%u,%u,%lu", ts, e->pid, e->ppid, e->cgroup_id,
+		       e->user_namespace_id, e->pid_namespace_id, e->mount_namespace_id);
+	} else {
+		printf("%-8s\t%-7d\t%-7d\t%lu\t\t%u\t\t%u\t\t%lu\t\t", ts, e->pid, e->ppid,
+		       e->cgroup_id, e->user_namespace_id, e->pid_namespace_id,
+		       e->mount_namespace_id);
+	}
+}
+
+static int start_process_tracker(ring_buffer_sample_fn handle_event,
+				 libbpf_print_fn_t libbpf_print_fn, struct process_env env,
+>>>>>>> refs/remotes/origin/master
 				 struct process_bpf *skel, void *ctx)
 {
 	// struct ring_buffer *rb = NULL;

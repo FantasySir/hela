@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // SM3, GB/T 32905-2016 信息安全技术 SM3密码杂凑算法
 // bobwxc@yeah.net, 2023
 // Public domain
@@ -304,3 +305,11 @@ void sm3_digest(sm3_t *hash_body, unsigned char digest[32])
 }
 
 #endif
+=======
+#ifndef SM3__H
+#define SM3__H
+
+void sm3(uint8_t *message, uint32_t len, uint8_t sm3_hashes[32])
+
+#endif // !SM3__H
+>>>>>>> refs/remotes/origin/master
