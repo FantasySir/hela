@@ -45,16 +45,6 @@ struct {
         __uint(max_entries, 1);
 } cgroup_map SEC(".maps");
 
-<<<<<<< HEAD
-=======
-struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__uint(max_entries, 1 << 24);
-	__type(key, u64);
-	__type(value, u64);
-} container_mntns SEC(".maps");
-
->>>>>>> refs/remotes/origin/master
 
 const volatile int filter_cg = 0;
 const volatile unsigned char filter_report_times = 0;
@@ -94,24 +84,8 @@ int sys_enter(struct trace_event_raw_sys_enter *args)
 
         struct task_struct *task = (struct task_struct *)bpf_get_current_task();
         u64 mntns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
-<<<<<<< HEAD
 
         
-=======
-        
-        /* mntns Filter */
-        if (!bpf_map_lookup_elem(&container_mntns, &mntns)) {
-                // bpf_printk("syscall not in container...mntns is : %lu", mntns);
-                return 0;
-        }
-
-        // if (bpf_map_lookup_elem(&container_mntns, &mntns)) {
-        //         // bpf_printk("Get container mount namespace from process tracker... mount namespace id is : %lu", mntns);
-        // }
-        /* mntns filter finished */
-
-        u32 pid = bpf_get_current_pid_tgid() >> 32;
->>>>>>> refs/remotes/origin/master
         if (filter_pid && pid != filter_pid)
                 return 0;
         if (filter_cg && !bpf_current_task_under_cgroup(&cgroup_map, 0))
@@ -121,10 +95,7 @@ int sys_enter(struct trace_event_raw_sys_enter *args)
                 return 0;
         }
 
-<<<<<<< HEAD
         submit_event(task, pid, mntns, syscall_id, 1);
-=======
->>>>>>> refs/remotes/origin/master
 
         /* 检查进程命令 */
         char comm[MAX_COMM_LEN];

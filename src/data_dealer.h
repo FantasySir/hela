@@ -3,15 +3,12 @@
 
 #include <curl/curl.h>
 #include <stdio.h>
-<<<<<<< HEAD
 #include <stdlib.h>
 
 // #include "sm3.h"
 
 
 #define CHECKBATCH 24
-=======
->>>>>>> refs/remotes/origin/master
 
 /* Queue */
 
@@ -20,22 +17,15 @@ struct queue {
 	int size;	// 队列容量
 	int front;
 	int rear;
-<<<<<<< HEAD
 	int checkCount;
 	int deviation;
-=======
->>>>>>> refs/remotes/origin/master
 };
 
 typedef struct queue SEQ;
 
 static int queueNext(struct queue *q, int idx)
 {
-<<<<<<< HEAD
 	return (idx + 1) % (q->size + 1);
-=======
-	return (idx + 1) % q->size;
->>>>>>> refs/remotes/origin/master
 }
 
 int queueIsFull(struct queue *q) {
@@ -46,7 +36,6 @@ int queueIsFull(struct queue *q) {
 
 int queueAppend(struct queue *q, int data)
 {
-<<<<<<< HEAD
 	if (queueIsFull(q)) {
 		q->front = queueNext(q, q->front);
 	}
@@ -56,17 +45,6 @@ int queueAppend(struct queue *q, int data)
 	q->data[q->rear] = data;
 	q->rear = queueNext(q, q->rear);
 
-=======
-	if (q->size < 1) {
-		return 0;
-	}
-	int next_idx = queueNext(q, q->rear);
-	q->data[next_idx] = data;
-	q->rear = next_idx;
-	if (q->rear == q->front) {
-		q->front++;
-	}
->>>>>>> refs/remotes/origin/master
 	return 1;
 }
 
@@ -100,22 +78,16 @@ void con_syscall_init(SEQ **syscall_seq, int syscall_seq_cap, int syscall_seq_si
 	for (i = 0; i < syscall_seq_size; ++i) {
 		syscall_seq[i] = (SEQ *)malloc(sizeof(SEQ));
 		syscall_seq[i]->front = syscall_seq[i]->rear = 0;
-<<<<<<< HEAD
 		syscall_seq[i]->data = (int *)malloc(sizeof(int) * (syscall_seq_cap + 1));
 		syscall_seq[i]->size = syscall_seq_cap;
 		syscall_seq[i]->checkCount = 0;
 		syscall_seq[i]->deviation = 0;
-=======
-		syscall_seq[i]->data = (int *)malloc(sizeof(int) * syscall_seq_cap);
-		syscall_seq[i]->size = syscall_seq_cap;
->>>>>>> refs/remotes/origin/master
 	}
 }
 
 int update_syscall_seq(SEQ *syscall_seq, int new_syscall)
 {
 	int ret = queueAppend(syscall_seq, new_syscall);
-<<<<<<< HEAD
 	syscall_seq->checkCount++;
 	return ret;
 }
@@ -131,11 +103,6 @@ int add_deviation(SEQ *syscall_seq)
 	return syscall_seq->deviation;
 }
 
-=======
-	return ret;
-}
-
->>>>>>> refs/remotes/origin/master
 /**
  * @description: 合并系统调用序列
  * @param {SEQ} *syscall_seq 系统调用序列
@@ -147,10 +114,7 @@ int combine_sequence(SEQ *syscall_seq, char **out_seq)
 	int c_p = syscall_seq->front;
 	int s_p = 0;
 	char *seq_combine = *out_seq;
-<<<<<<< HEAD
 	// printf("q front is : %d\n", syscall_seq->data[syscall_seq->front]);
-=======
->>>>>>> refs/remotes/origin/master
 	if (queueIsFull(syscall_seq)) {
 		// 融合序列为string
 		while (c_p != syscall_seq->rear) {
@@ -187,7 +151,6 @@ int combine_sequence(SEQ *syscall_seq, char **out_seq)
 	return s_p;		
 }
 
-<<<<<<< HEAD
 void digest_gen(char *in, int len, unsigned char out[64]) 
 {
 	unsigned char digest[32];
@@ -206,18 +169,6 @@ void freeSeq(SEQ **syscall_seq, int syscall_seq_cap, int syscall_seq_size)
 		free(syscall_seq[i]->data);
 		free(syscall_seq[i]);
 	}
-=======
-void digest_gen(char *in, int len, unsigned char *out) 
-{
-	char res[32];
-	unsigned char *ori_msg = (unsigned char *)in;
-	sm3(ori_msg, len, res);
-}
-
-int out2File(unsigned char *in, int len, char *file_path) 
-{
-
->>>>>>> refs/remotes/origin/master
 }
 
 /* syscall data dealer end*/
