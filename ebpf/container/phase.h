@@ -7,12 +7,12 @@
 
 #ifndef CONTAINER_STAGE
 #define CONTAINER_STAGE
-#define CREATE 0x01
-#define CONFIG 0x02
-#define BOOT 0x04
-#define RUNC_INIT 0x08
-#define RUNC_CONTAINER_INIT 0x10
-#define READ_FIFOFD 0x20
+#define START 0x01
+#define INIT 0x02
+#define FIFO 0x04
+// #define RUNC_INIT 0x08
+// #define RUNC_CONTAINER_INIT 0x10
+// #define READ_FIFOFD 0x20
 #endif // !CONTAINER_STAGE
 
 

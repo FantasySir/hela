@@ -57,34 +57,8 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Failed to attach BPF skeleton\n");
 		goto cleanup;
 	}
-	skel->links.container_create = bpf_program__attach_uprobe(skel->progs.container_create,
-	false,-1,runc_path,0x4319e0);
-	err = libbpf_get_error(skel->links.container_create);
-	if (err) {
-		fprintf(stderr, "Failed to attach uprobe!\n");
-		goto cleanup;
-	}
-	skel->links.bootstrap1 = bpf_program__attach_uprobe(skel->progs.bootstrap1,
-	false,-1,runc_path,0x43a1e0);
-	err = libbpf_get_error(skel->links.bootstrap1);
-	if (err) {
-		fprintf(stderr, "Failed to attach uprobe!\n");
-		goto cleanup;
-	}
-	skel->links.runc_init = bpf_program__attach_uprobe(skel->progs.runc_init,
-	false,-1,runc_path,0x445120);
-	err = libbpf_get_error(skel->links.runc_init);
-	if (err) {
-		fprintf(stderr, "Failed to attach uprobe!\n");
-		goto cleanup;
-	}
-	skel->links.runc_containerInit = bpf_program__attach_uprobe(skel->progs.runc_containerInit,
-	false,-1,runc_path,0x433800);
-	err = libbpf_get_error(skel->links.runc_containerInit);
-	if (err) {
-		fprintf(stderr, "Failed to attach uprobe!\n");
-		goto cleanup;
-	}
+
+
 	skel->links.read_fifofd = bpf_program__attach_uprobe(skel->progs.read_fifofd,
 	false,-1,runc_path,0x420d56);
 	err = libbpf_get_error(skel->links.read_fifofd);
@@ -92,23 +66,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Failed to attach uprobe!\n");
 		goto cleanup;
 	}
-	skel->links.container_config = bpf_program__attach_uprobe(skel->progs.container_config,
-	false,-1,runc_path,0x48a4aa);
-	err = libbpf_get_error(skel->links.container_config);
-	if (err) {
-		fprintf(stderr, "Failed to attach uprobe!\n");
-		goto cleanup;
-	}
-	/*skel->links.Exec = bpf_program__attach_kprobe(skel->progs.Exec,false,"__x64_sys_execve");
-	err = libbpf_get_error(skel->links.Exec);
-	if (err) {
-		fprintf(stderr, "Failed to attach uprobe!\n");
-		goto cleanup;
-	}*/
-	while (!exiting) {
-		sleep(1);
-		
-	}
+
 cleanup:
 	/* Clean up */
 	phase_bpf__destroy(skel);

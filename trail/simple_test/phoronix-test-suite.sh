@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 定义测试名称
-TEST_SUITE="cpu-massive"  # 根据需要替换测试套件名称
+TEST_SUITE="mbw"  # 根据需要替换测试套件名称
 NO_MECHANISM_RESULT="cpu-no-mechanism"
 WITH_MECHANISM_RESULT="cpu-with-mechanism"
 COMPARISON_RESULT="comparison-result"
