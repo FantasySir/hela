@@ -29,7 +29,7 @@ int main(int argc, char **argv)
 {
 	struct phase_bpf *skel;
 	int err;
-	char *runc_path = "../../test/ebpf/mycontainer1/runc";
+	char *runc_path = "/usr/bin/runc";
 	/* Set up libbpf errors and debug info callback */
 	libbpf_set_print(libbpf_print_fn);
 

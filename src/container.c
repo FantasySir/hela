@@ -70,30 +70,30 @@ static struct phase_bpf *start_container_tracker()
         return skel;
 
         // start
-        // skel->links.start = bpf_program__attach_uprobe(skel->progs.start, false, -1, runc_sys, 0x159600);
-        // err = libbpf_get_error(skel->links.start);
-        // if (err) {
-        //         hela_error("Failed to attach runc start!");
-        //         goto cleanup;
-        // }
+        skel->links.start = bpf_program__attach_uprobe(skel->progs.start, false, -1, runc_sys, 0x159600);
+        err = libbpf_get_error(skel->links.start);
+        if (err) {
+                hela_error("Failed to attach runc start!");
+                goto cleanup;
+        }
 
-        // // init
-	// skel->links.runc_init = bpf_program__attach_uprobe(skel->progs.runc_init,
-	// false,-1,runc_sys,0x442520);
-	// err = libbpf_get_error(skel->links.runc_init);
-	// if (err) {
-	// 	hela_error("Failed to attach uprobe in init!!!");
-	// 	goto cleanup;
-	// }
+        // init
+	skel->links.runc_init = bpf_program__attach_uprobe(skel->progs.runc_init,
+	false,-1,runc_sys,0x442520);
+	err = libbpf_get_error(skel->links.runc_init);
+	if (err) {
+		hela_error("Failed to attach uprobe in init!!!");
+		goto cleanup;
+	}
 
 
-        // // fifo
-        // skel->links.start = bpf_program__attach_uprobe(skel->progs.read_fifofd, false, -1, runc_sys, 0x41df05);
-        // err = libbpf_get_error(skel->links.read_fifofd);
-        // if (err) {
-        //         hela_error("Failed to attach runc fifofd!");
-        //         goto cleanup;
-        // }
+        // fifo
+        skel->links.start = bpf_program__attach_uprobe(skel->progs.read_fifofd, false, -1, runc_sys, 0x41df05);
+        err = libbpf_get_error(skel->links.read_fifofd);
+        if (err) {
+                hela_error("Failed to attach runc fifofd!");
+                goto cleanup;
+        }
 
 cleanup:
 	phase_bpf__destroy(skel);
@@ -202,8 +202,6 @@ static int handle_event_with_division(void *v_ctx, void *data, size_t data_sz)
         struct phase_bpf *phase_skel = (struct phase_proc *)v_ctx;
         int con_phase = 0x0;
 
-        hela_info();
-
         if (e->syscall_id < 0 || e->syscall_id >= syscall_names_x86_64_size)
 		return 0;
         
@@ -212,7 +210,7 @@ static int handle_event_with_division(void *v_ctx, void *data, size_t data_sz)
         err = bpf_map_lookup_elem(fd, &pid, &con_phase);
 
         if (0x0 == con_phase) {
-                hela_info("Not in runc!");
+                hela_info("Not in runc! State is : %x", con_phase);
                 return 0;
         }
 

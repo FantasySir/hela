@@ -76,7 +76,7 @@ int BPF_UPROBE(start)
     // state = bpf_map_lookup_elem(&proc_state, &pid);
     // bpf_printk("Find state! State is : %x", state);
 
-    // return 0;
+    return 0;
 }
 
 
@@ -84,14 +84,14 @@ int BPF_UPROBE(start)
 SEC("uprobe")
 int BPF_UPROBE(runc_init)//容器进程开始同步，探测阶段2开始
 {
-    // int pid = bpf_get_current_pid_tgid()>>32;
-    // int state;
+    int pid = bpf_get_current_pid_tgid()>>32;
+    int state;
 
-    // state &= INIT;
-    // bpf_map_update_elem(&proc_state, &pid, &state, BPF_ANY);
+    state &= INIT;
+    bpf_map_update_elem(&proc_state, &pid, &state, BPF_ANY);
 
-    // /* Test proc */
-    // state = bpf_map_lookup_elem(&proc_state, &pid);
+    /* Test proc */
+    state = bpf_map_lookup_elem(&proc_state, &pid);
     // bpf_printk("Find state in init !! State is : %x", state);
 
     return 0;
@@ -100,15 +100,15 @@ int BPF_UPROBE(runc_init)//容器进程开始同步，探测阶段2开始
 SEC("uprobe")
 int BPF_UPROBE(read_fifofd)
 {
-    // int pid = bpf_get_current_pid_tgid()>>32;
-    // int state;
+    int pid = bpf_get_current_pid_tgid()>>32;
+    int state;
 
-    // state &= FIFO;
-    // bpf_map_update_elem(&proc_state, &pid, &state, BPF_ANY);
+    state &= FIFO;
+    bpf_map_update_elem(&proc_state, &pid, &state, BPF_ANY);
 
-    // /* Test proc */
-    // state = bpf_map_lookup_elem(&proc_state, &pid);
-    // bpf_printk("Find state in init !! State is : %x", state); 
+    /* Test proc */
+    state = bpf_map_lookup_elem(&proc_state, &pid);
+
 
     return 0;
 }
@@ -119,15 +119,15 @@ SEC("tp/sched/sched_process_exec")
 int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 {
 	
-	// u64 pid = bpf_get_current_pid_tgid() >> 32;
-	// u64 mntns;
+	u64 pid = bpf_get_current_pid_tgid() >> 32;
+	u64 mntns;
 
-	// struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-	// mntns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
-    // int state = 0x0;
+	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+	mntns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
+    int state = 0x0;
 
-	// // // 给一个进程标记即可，标记其为容器进程的哪个阶段
-    // bpf_map_update_elem(&proc_state, &pid, &state, BPF_ANY);
+	// // 给一个进程标记即可，标记其为容器进程的哪个阶段
+    bpf_map_update_elem(&proc_state, &pid, &state, BPF_ANY);
     
 	return 0;
 }
