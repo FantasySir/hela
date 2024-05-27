@@ -56,7 +56,7 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 
 	// udevd mntns
 	if ( bpf_strncmp(comm, 15, "bridge-network-") == 0 ) {
-		bpf_printk("Detected bridge-network!! mntns is : %lu", mntns);
+		// bpf_printk("Detected bridge-network!! mntns is : %lu", mntns);
 		if (!bpf_map_lookup_elem(&host_con_base_mntns, &mntns)) {
 			bpf_map_update_elem(&host_con_base_mntns, &mntns, &pid, BPF_ANY);
 		}
@@ -65,7 +65,7 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 
 	// dockerd
 	if (bpf_strncmp(comm, 15, "containerd-shim") == 0) {
-		bpf_printk("Detected shim ! mntns is : %lu", mntns);
+		// bpf_printk("Detected shim ! mntns is : %lu", mntns);
 		if (!bpf_map_lookup_elem(&host_con_base_mntns, &mntns)) {
 			bpf_map_update_elem(&host_con_base_mntns, &mntns, &pid, BPF_ANY);
 		}
@@ -85,12 +85,12 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 	u64 con_num = bpf_map_lookup_elem(&container_mntns, &mntns);
 	
 	if (!con_num) {
-		bpf_printk("Yeah! Adding new mntns! mntns is : %lu, proc_comm is : %s", mntns, comm);
+		// bpf_printk("Yeah! Adding new mntns! mntns is : %lu, proc_comm is : %s", mntns, comm);
 		container_id += 1;
-		bpf_printk("container_id is : %lu", container_id);
+		// bpf_printk("container_id is : %lu", container_id);
 		bpf_map_update_elem(&container_mntns, &mntns, &container_id, BPF_ANY);
 	} else {
-		bpf_printk("Sure! There has exist mnts is : %lu, proc_comm is : %s", mntns, comm);
+		// bpf_printk("Sure! There has exist mnts is : %lu, proc_comm is : %s", mntns, comm);
 	}
 	return 0;
 }

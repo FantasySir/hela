@@ -15,28 +15,29 @@
 // #define READ_FIFOFD 0x20
 #endif // !CONTAINER_STAGE
 
-
+#define DIS_MODE
+#define SYS_ID 0
+#define SYS_NAME 1
 
 #define TASK_COMM_LEN	 16
 #define MAX_FILENAME_LEN 127
 #define CONTAINER_ID_LEN 127
-
-#include "../process/process.h"
-
+#define SYSCALL_TASK_COMM_LEN 64
 
 typedef int pid_t;
 
 
-struct container_process {
-	int pid;
-	int ppid;//parent id
-        char cid[20]; // docker id
-	int stage; // process stage
-        
-	/*char comm[TASK_COMM_LEN];
-	char filename[MAX_FILENAME_LEN];*/
-	struct process_event *pe;
-}; 
+struct syscall_event
+{
+        int pid;
+        int ppid;
+        uint32_t syscall_id;
+        uint64_t mntns;
+        char comm[SYSCALL_TASK_COMM_LEN];
+        unsigned char occur_times;
+        int con_id;
+	int state;
+};
 
 
 #endif

@@ -18,8 +18,8 @@
 #include "./.output/process.skel.h"
 #include "../ebpf/syscall/syscall.h"
 #include "./.output/syscall.skel.h"
-#include "../ebpf/container/phase.h"
-#include "./.output/phase.skel.h"
+// #include "../ebpf/container/phase.h"
+// #include "./.output/phase.skel.h"
 #include "../ebpf/syscall/syscall_helper.h"
 
 #include "data_dealer.h"
@@ -27,7 +27,7 @@
 #include "file_dealer.h"
 
 // #define CON_MNTNS_PIN_PATH              "/sys/fs/bpf/con_mntns"
-#define RUNC_PATH                       "/usr/bin/runc"
+// #define RUNC_PATH                       "/usr/bin/runc"
 #define DIGEST_LIB                      "../test/digest_lib/mysqld"
 #define MAX_CON                         500
 #define BATCH                           8
@@ -39,66 +39,67 @@ struct event_ctx {
         struct syscall_bpf *ctx;
         SEQ **seq;
         HashMap *map;
+        char name[50];
 };
 
-static struct phase_bpf *start_container_tracker()
-{
-	struct phase_bpf *skel;
-        int err;
-        char *runc_sys = RUNC_PATH;
+// static struct phase_bpf *start_container_tracker()
+// {
+// 	struct phase_bpf *skel;
+//         int err;
+//         char *runc_sys = "/usr/bin/runc";
 
-        /* load & verify ebpf applications */
-        skel = phase_bpf__open();
-        if (!skel) {
-          	fprintf(stderr,
-                	  "Failed to open and load container tracker skeleton\n");
-		return NULL;
-        }
-        /* load & verify bpf prog */
-        err = phase_bpf__load(skel);
-        if (err) {
-		fprintf(stderr, "Failed to load and verify container tracker bpf skeleton\n");
-		goto cleanup;
-        }
+//         /* load & verify ebpf applications */
+//         skel = phase_bpf__open();
+//         if (!skel) {
+//           	fprintf(stderr,
+//                 	  "Failed to open and load container tracker skeleton\n");
+// 		return NULL;
+//         }
+//         /* load & verify bpf prog */
+//         err = phase_bpf__load(skel);
+//         if (err) {
+// 		fprintf(stderr, "Failed to load and verify container tracker bpf skeleton\n");
+// 		goto cleanup;
+//         }
 
-        /* attach uprobe */
-        err = phase_bpf__attach(skel);
-        if (err) {
-		fprintf(stderr, "Failed to attach BPF skeleton\n");
-		goto cleanup;
-	}
-        return skel;
+//         /* attach uprobe */
+//         err = phase_bpf__attach(skel);
+//         if (err) {
+// 		fprintf(stderr, "Failed to attach BPF skeleton\n");
+// 		goto cleanup;
+// 	}
+//         return skel;
 
-        // start
-        skel->links.start = bpf_program__attach_uprobe(skel->progs.start, false, -1, runc_sys, 0x159600);
-        err = libbpf_get_error(skel->links.start);
-        if (err) {
-                hela_error("Failed to attach runc start!");
-                goto cleanup;
-        }
+//         // start
+//         skel->links.start = bpf_program__attach_uprobe(skel->progs.start, false, -1, runc_sys, 0x159600);
+//         err = libbpf_get_error(skel->links.start);
+//         if (err) {
+//                 hela_error("Failed to attach runc start!");
+//                 goto cleanup;
+//         }
 
-        // init
-	skel->links.runc_init = bpf_program__attach_uprobe(skel->progs.runc_init,
-	false,-1,runc_sys,0x442520);
-	err = libbpf_get_error(skel->links.runc_init);
-	if (err) {
-		hela_error("Failed to attach uprobe in init!!!");
-		goto cleanup;
-	}
+//         // init
+// 	skel->links.runc_init = bpf_program__attach_uprobe(skel->progs.runc_init,
+// 	false,-1,runc_sys,0x442520);
+// 	err = libbpf_get_error(skel->links.runc_init);
+// 	if (err) {
+// 		hela_error("Failed to attach uprobe in init!!!");
+// 		goto cleanup;
+// 	}
 
 
-        // fifo
-        skel->links.start = bpf_program__attach_uprobe(skel->progs.read_fifofd, false, -1, runc_sys, 0x41df05);
-        err = libbpf_get_error(skel->links.read_fifofd);
-        if (err) {
-                hela_error("Failed to attach runc fifofd!");
-                goto cleanup;
-        }
+//         // fifo
+//         skel->links.start = bpf_program__attach_uprobe(skel->progs.read_fifofd, false, -1, runc_sys, 0x41df05);
+//         err = libbpf_get_error(skel->links.read_fifofd);
+//         if (err) {
+//                 hela_error("Failed to attach runc fifofd!");
+//                 goto cleanup;
+//         }
 
-cleanup:
-	phase_bpf__destroy(skel);
-        return skel;
-}
+// cleanup:
+// 	phase_bpf__destroy(skel);
+//         return skel;
+// }
 
 static struct process_bpf *start_process_tracker()
 {
@@ -188,88 +189,88 @@ cleanup:
 //         }
 // }
 
-static int handle_event_with_division(void *v_ctx, void *data, size_t data_sz)
-{
-        int fd;
-        const struct syscall_event *e = data;
-        const unsigned long mntns = e->mntns;
-        // struct container_process cp;
-        int err = 0;
-        struct tm *tm;
-        char ts[32];
-        time_t t;
-        int pid = e->pid;
-        struct phase_bpf *phase_skel = (struct phase_proc *)v_ctx;
-        int con_phase = 0x0;
+// static int handle_event_with_division(void *v_ctx, void *data, size_t data_sz)
+// {
+//         int fd;
+//         const struct syscall_event *e = data;
+//         const unsigned long mntns = e->mntns;
+//         // struct container_process cp;
+//         int err = 0;
+//         struct tm *tm;
+//         char ts[32];
+//         time_t t;
+//         int pid = e->pid;
+//         struct phase_bpf *phase_skel = (struct phase_proc *)v_ctx;
+//         int con_phase = 0x0;
 
-        if (e->syscall_id < 0 || e->syscall_id >= syscall_names_x86_64_size)
-		return 0;
+//         if (e->syscall_id < 0 || e->syscall_id >= syscall_names_x86_64_size)
+// 		return 0;
         
-        // fd= bpf_map__find_fd_by_name(phase_skel, "proc_state");
-        fd = bpf_map__fd(phase_skel->maps.proc_state);
-        err = bpf_map_lookup_elem(fd, &pid, &con_phase);
+//         // fd = bpf_map__find_fd_by_name(phase_skel, "proc_state");
+//         fd = bpf_map__fd(phase_skel->maps.proc_state);
+//         err = bpf_map_lookup_elem(fd, &pid, &con_phase);
 
-        if (0x0 == con_phase) {
-                hela_info("Not in runc! State is : %x", con_phase);
-                return 0;
-        }
-
-
-        /* Time stamp collect */
-        time(&t);
-        tm = localtime(&t);
-        strftime(ts, sizeof(ts), "%H:%M:%S", tm);
+//         if (0x0 == con_phase) {
+//                 // hela_info("Not in runc! State is : %x", con_phase);
+//                 return 0;
+//         }
 
 
-        printf("%s          %s        %u        %s          %x\n", ts, e->comm, pid, syscall_names_x86_64[e->syscall_id], con_phase);
+//         /* Time stamp collect */
+//         time(&t);
+//         tm = localtime(&t);
+//         strftime(ts, sizeof(ts), "%H:%M:%S", tm);
 
-        return 0;
-}
+
+//         printf("%s,%s,%u,%u,%s,%x\n", ts, e->comm, pid, e->ppid, syscall_names_x86_64[e->syscall_id], con_phase);
+
+//         return 0;
+// }
 
 
-int start_trackers_with_division(char *output_path, int exiting)
-{
-        hela_info ("Yes! In division!");
-        struct phase_bpf *phase_skel;
-        struct syscall_bpf *syscall_skel;
+// int start_trackers_with_division(char *output_path, int exiting)
+// {
+//         hela_info ("Yes! In division!");
+//         struct phase_bpf *phase_skel;
+//         struct syscall_bpf *syscall_skel;
 
-        struct ring_buffer *syscall_rb = NULL;
+//         struct ring_buffer *syscall_rb = NULL;
 
-        void *ctx = NULL;
-        int shared_fd = 0;
-        int err;
-        int i;
+//         void *ctx = NULL;
+//         int shared_fd = 0;
+//         int err;
+//         int i;
 
-        phase_skel = start_container_tracker();
-        syscall_skel = start_syscall_tracker();
+//         phase_skel = start_container_tracker();
+//         syscall_skel = start_syscall_tracker();
 
-        ctx = (void *)phase_skel;
+//         ctx = (void *)phase_skel;
 
-        syscall_rb = ring_buffer__new(bpf_map__fd(syscall_skel->maps.events), handle_event_with_division, ctx, NULL);
-        if (!syscall_rb) {
-                err = -1;
-                fprintf(stderr, "Failed to create ring buffer!\n");
-                goto cleanups;
-        }
+//         syscall_rb = ring_buffer__new(bpf_map__fd(syscall_skel->maps.events), handle_event_with_division, ctx, NULL);
+//         if (!syscall_rb) {
+//                 err = -1;
+//                 fprintf(stderr, "Failed to create ring buffer!\n");
+//                 goto cleanups;
+//         }
 
-        while (!exiting) {
-                err = ring_buffer__poll(syscall_rb, 100);
-                if (err == -EINTR) {
-                        err = 0;
-                        break;
-                }
-                if (err < 0) {
-                        hela_error("polling perf buffer: %d\n", err);
-                        break;
-                }
-        }
+//         while (!exiting) {
+//                 err = ring_buffer__poll(syscall_rb, 100);
+//                 if (err == -EINTR) {
+//                         err = 0;
+//                         break;
+//                 }
+//                 if (err < 0) {
+//                         hela_error("polling perf buffer: %d\n", err);
+//                         break;
+//                 }
+//         }
 
-cleanups:
-        phase_bpf__destroy(phase_skel);
-        syscall_bpf__destroy(syscall_skel);
-        ring_buffer__free(syscall_rb);
-        return err < 0 ? -err : 0;
-}
+// cleanups:
+//         // phase_bpf__destroy(phase_skel);
+//         syscall_bpf__destroy(syscall_skel);
+//         ring_buffer__free(syscall_rb);
+//         return err < 0 ? -err : 0;
+// }
 
 
 static int handle_event_without_division(void *v_ctx, void *data, size_t data_sz)
@@ -287,6 +288,12 @@ static int handle_event_without_division(void *v_ctx, void *data, size_t data_sz
         int pid = e->pid;
         // struct syscall_bpf *syscall_skel = (struct syscall_bpf *)ctx->ctx;
         struct process_bpf *process_skel = (struct process_bpf *)ctx->proc_skel;
+
+        if (strcmp(ctx->name, "nothing") != 0) {
+               if (strcmp(e->comm, ctx->name) != 0) {
+                        return 0;
+               }
+        }  
 
         if (e->syscall_id < 0 || e->syscall_id >= syscall_names_x86_64_size)
 		return 0;
@@ -344,7 +351,7 @@ static int handle_event_without_division(void *v_ctx, void *data, size_t data_sz
         return 0;
 }
 
-int start_trackers_without_division(char *output_path, int exiting)
+int start_trackers_without_division(char *output_path, int exiting, char *name)
 {
         // struct phase_bpf *phase_skel;
         struct process_bpf *process_skel;
@@ -380,6 +387,7 @@ int start_trackers_without_division(char *output_path, int exiting)
                 .seq = syscall_seq,
                 .map = dig_map
         };
+        strcpy(ec.name, name);
         ctx = (void *)&ec;
 
         syscall_rb = ring_buffer__new(bpf_map__fd(syscall_skel->maps.events), handle_event_without_division, ctx, NULL);

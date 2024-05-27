@@ -57,7 +57,7 @@ void __always_inline submit_event(struct task_struct *task, u32 pid, u32 mntns, 
         struct syscall_event *event = bpf_ringbuf_reserve(&events, sizeof(struct syscall_event), 0);
         if (!event) {
                 // 没有足够rb空间
-                bpf_printk("No enough space for ringbuffer !!");
+                // bpf_printk("No enough space for ringbuffer !!");
                 return ;
         }
 
@@ -95,7 +95,7 @@ int sys_enter(struct trace_event_raw_sys_enter *args)
                 return 0;
         }
 
-        submit_event(task, pid, mntns, syscall_id, 1);
+        // submit_event(task, pid, mntns, syscall_id, 1);
 
         /* 检查进程命令 */
         char comm[MAX_COMM_LEN];
@@ -105,45 +105,31 @@ int sys_enter(struct trace_event_raw_sys_enter *args)
         }
 
         u8 *syscall_value = bpf_map_lookup_elem(&syscalls, &pid);
-        if (syscall_value) {   // 存在调用列表
-                if (syscall_value[syscall_id] == 0) { // 头一次调用
-                        // 提交进程系统调用事件
-                        submit_event(task, pid, mntns, syscall_id, 1);
-                        syscall_value[syscall_id] = 1;
-                        return 0;
-                } else if (filter_report_times) {
-                        if (syscall_value[syscall_id] >= filter_report_times) {
-                                // 调用次数大于1次，就可以放入event rb中
-                                submit_event(task, pid, mntns, syscall_id,
-                                             filter_report_times);
-                                syscall_value[syscall_id] = 1;
-                        } else {
-                                syscall_value[syscall_id]++;
-                        }
-                } else if (min_duration_ns) {
-                        u64 ts = bpf_ktime_get_ns();
-                        if (syscall_value[syscall_id] < 255)
-                                syscall_value[syscall_id]++;
-                        if (ts - last_ts < min_duration_ns)
-                          return 0;
-                        last_ts = ts;
-                        submit_event(task, pid, mntns, syscall_id,
-                                     syscall_value[syscall_id]);
-                        syscall_value[syscall_id] = 1;
-                }
+        static unsigned char init[MAX_SYSCALLS]= { 0 };
+        if (!syscall_value) {
+            submit_event(task, pid, mntns, syscall_id, 1);
+        //     static unsigned char init[MAX_SYSCALLS];
+            init[syscall_id]++;
+            bpf_map_update_elem(&syscalls, &pid, init, BPF_ANY);
+            const u8 *value = bpf_map_lookup_elem(&syscalls, &pid);
+            if (!value) {
+                return 0;
+            }
+            bpf_printk("[1] syscall is: %u", value[syscall_id]);
+            return 0;
         } else {
-                // 头一次提交事件信息
+            if (syscall_value[syscall_id] == 0) {
                 submit_event(task, pid, mntns, syscall_id, 1);
-
-                static const unsigned char init[MAX_SYSCALLS];
-                bpf_map_update_elem(&syscalls, &pid, &init, BPF_ANY);
-
-                u8 *const value = bpf_map_lookup_elem(&syscalls, &pid);
-                if (!value) {
-                        // 不应该发生，我们就直接结束掉
-                        return 0;
-                }
-                value[syscall_id] = 1;
+                syscall_value[syscall_id] = 1;
+                bpf_map_update_elem(&syscalls, &pid, syscall_value, BPF_ANY);
+                bpf_printk("[2] syscall is: %u", syscall_value[syscall_id]);
+                return 0;
+            } else {
+                syscall_value[syscall_id] = 1;
+                bpf_map_update_elem(&syscalls, &pid, syscall_value, BPF_ANY);
+                bpf_printk("[3] syscall is: %u", syscall_value[syscall_id]);
+                return 0;
+            }
         }
         return 0;
 }

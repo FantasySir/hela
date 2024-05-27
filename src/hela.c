@@ -1,7 +1,10 @@
 #include "config.h"
 #include "hela.h"
 
-int exiting = 0;
+#include <string.h>
+
+int volatile exiting = 0;
+char name[50] = "nothing";
 
 static void sig_handler(int sig)
 {
@@ -15,12 +18,14 @@ int container_syscall_tracing(char *output_path, int mode)
 
 	if (NONE == mode) {
 		/* Print table title */
+		printf("name : %s\n", name);
 		printf("%s      %-8s      %-16s\n", "CONTAINER", "PID", "SYSCALL_ID");
-        	return start_trackers_without_division(output_path, exiting);
+        	return start_trackers_without_division(output_path, exiting, name);
 	} else if (PHASE_DIV == mode) {
 		/* Print table title */
 		printf("%s      %-8s      %-16s     %-24s\n", "TIME", "PID", "SYSCALL_ID", "PHASE");
-		return start_trackers_with_division(output_path, exiting);
+		system("../ebpf/container/phase");
+		// return start_trackers_with_division(output_path, exiting);
 	}
 
 	
@@ -31,23 +36,33 @@ int container_syscall_tracing(char *output_path, int mode)
 int parse_args(int argc, char *argv[])
 {
 	int opt;
-	if ((opt = getopt(argc, argv, "m:")) != -1) {
+	int ret = NONE;
+	while ((opt = getopt(argc, argv, "m:n:")) != -1) {
 		switch (opt)
 		{
 			case 'm':
 				if (strcmp(optarg, "phase") == 0) {
-					return PHASE_DIV;
+					ret = PHASE_DIV;
 					break;
 				} else if (strcmp(optarg, "none") == 0) {
-					return NONE;
+					ret = NONE;
 					break;
 				}
+			case 'n':
+				int name_size = strlen(optarg);
+				if (name_size > 50) {
+					name_size = 50;
+				}
+				memset(name, 0, sizeof(name));
+				strncpy(name, optarg, name_size);
+				printf("name is : %s\n", name);
+				break;
 		default:
-			return NONE;
+			ret = NONE;
 			break;
 		}
 	}
-	return NONE;
+	return ret;
 }
 
 int main(int argc, char **argv)
