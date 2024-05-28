@@ -62,6 +62,10 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	const unsigned int syscall_id = e->syscall_id;
 	const volatile int state = e->state;
 
+	if (strcmp(e->comm, "runc")) {
+		return 0;
+	}
+
 	if (syscall_id < 0 || syscall_id >= syscall_names_x86_64_size) {
 		return 0;
 	}
@@ -69,7 +73,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	if (SYS_ID == mode) {
 		printf("%d,%d,%u,%u,%d\n", pid, ppid, syscall_id, mntns, state);
 	} else if (SYS_NAME == mode) {
-		printf("%d,%d,%s,%u,%d\n", pid, ppid, syscall_names_x86_64[syscall_id], mntns, state);
+		printf("%s,%d,%d,%s,%u,%d\n", e->comm, pid, ppid, syscall_names_x86_64[syscall_id], mntns, state);
 	}
 	return 0;
 }

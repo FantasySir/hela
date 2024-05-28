@@ -174,15 +174,26 @@ SEC("tp/sched/sched_process_exec")
 int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 {
 	
-	u64 pid = bpf_get_current_pid_tgid() >> 32;
+	u64 pid = bpf_get_current_pid_tgid() >> 32; 
 	u64 mntns;
-
 	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 	mntns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
+    u64 ppid = BPF_CORE_READ(task, real_parent, tgid);
     int state = 0x0;
 
-	// // 给一个进程标记即可，标记其为容器进程的哪个阶段
-    bpf_map_update_elem(&proc_state, &pid, &state, BPF_ANY);
+    // 检查这个进程的父进程是否是phase中的。若是，则标记该进程也为同样的state
+    unsigned int *pstate = bpf_map_lookup_elem(&proc_state, &ppid);
+    if (!pstate) {
+        return 0;
+    }
+    if (*pstate) {
+        bpf_map_update_elem(&proc_state, &pid, pstate, BPF_ANY);    
+    } else {
+        bpf_map_update_elem(&proc_state, &pid, &state, BPF_ANY);    
+    }
+	// 给一个进程标记即可，标记其为容器进程的哪个阶段
+    
+
     // bpf_printk("tag proc!!");
 
     
@@ -210,27 +221,39 @@ int sys_enter(struct trace_event_raw_sys_enter *args)
         }
         unsigned int state = *p;
 
+        // char comm[MAX_COMM_LEN];
+        // bpf_get_current_comm(comm, sizeof(comm));
+        // if (bpf_strncmp(comm, "runc", 4) != 0) {
+        //     return 0;
+        // }
+
         struct task_struct *task = (struct task_struct *)bpf_get_current_task();
         u64 mntns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
         
         u8 *syscall_value = bpf_map_lookup_elem(&syscalls, &pid);
+        static unsigned char init[MAX_SYSCALLS]= { 0 };
         if (!syscall_value) {
             submit_event(task, pid, mntns, syscall_id, 1, state);
-            static unsigned char init[MAX_SYSCALLS];
+        //     static unsigned char init[MAX_SYSCALLS];
             init[syscall_id]++;
-            bpf_map_update_elem(&syscalls, &pid, &init, BPF_ANY);
+            bpf_map_update_elem(&syscalls, &pid, init, BPF_ANY);
             const u8 *value = bpf_map_lookup_elem(&syscalls, &pid);
             if (!value) {
                 return 0;
             }
+            bpf_printk("[1] syscall is: %u", value[syscall_id]);
             return 0;
         } else {
             if (syscall_value[syscall_id] == 0) {
                 submit_event(task, pid, mntns, syscall_id, 1, state);
                 syscall_value[syscall_id] = 1;
+                bpf_map_update_elem(&syscalls, &pid, syscall_value, BPF_ANY);
+                bpf_printk("[2] syscall is: %u", syscall_value[syscall_id]);
                 return 0;
             } else {
-                syscall_value[syscall_id]++;
+                syscall_value[syscall_id] = 1;
+                bpf_map_update_elem(&syscalls, &pid, syscall_value, BPF_ANY);
+                bpf_printk("[3] syscall is: %u", syscall_value[syscall_id]);
                 return 0;
             }
         }

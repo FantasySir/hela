@@ -44,7 +44,6 @@ int handle_exec(struct trace_event_raw_sched_process_exec *ctx)
 
 	struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 	mntns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
-	bpf_get_current_comm(&comm, sizeof(comm));
 
 	/* filter */
 
